@@ -2,6 +2,9 @@ import React, { useState, useRef, useEffect } from 'react';
 import './MovieSearch.css';
 import logo from './assets/logo.png';
 
+const API_KEY_OMDB = process.env.REACT_APP_OMDB_API_KEY;
+const API_KEY_MISTRAL = process.env.REACT_APP_MISTRAL_API_KEY;
+
 function MovieSearch() {
   const [query, setQuery] = useState('');
   const [movie, setMovie] = useState(null);
@@ -39,7 +42,7 @@ function MovieSearch() {
     }
 
     try {
-      const response = await fetch(`http://www.omdbapi.com/?s=${encodeURIComponent(value)}&apikey=e8f1d854`);
+      const response = await fetch(`https://www.omdbapi.com/?s=${encodeURIComponent(value)}&apikey=${API_KEY_OMDB}`);
       if (response.ok) {
         const data = await response.json();
         if (data.Response === 'True') {
@@ -95,7 +98,7 @@ function MovieSearch() {
     }
 
     try {
-      const response = await fetch(`http://www.omdbapi.com/?t=${encodeURIComponent(queryToSearch)}&apikey=e8f1d854&plot=full`);
+      const response = await fetch(`https://www.omdbapi.com/?t=${encodeURIComponent(queryToSearch)}&apikey=${API_KEY_OMDB}&plot=full`);
       if (response.ok) {
         const data = await response.json();
         if (data.Response === 'True') {
@@ -117,8 +120,8 @@ function MovieSearch() {
   };
 
   const generateBingo = async (movieData) => {
-    const apiKeyMistral = 'UjBSLoh8QKi6nNU7wvVtGfXZ4SqbKE5e';
     const endpoint = 'https://api.mistral.ai/v1/chat/completions';
+
     const prompt = `Generate 9 unique bingo items for the movie "${movieData.Title}" (${movieData.Year}). Use the following information to make the items as specific and relevant as possible:
 
 Plot: ${movieData.Plot}
@@ -128,13 +131,14 @@ Genre: ${movieData.Genre}
 Awards: ${movieData.Awards}
 Runtime: ${movieData.Runtime}
 Rated: ${movieData.Rated}
-    
+
 Each bingo item should be a specific event, character, quote, or fact about the movie. Make sure the items are varied and cover different aspects of the film. Respond with just the list of 9 items, each on a new line.`;
+
     try {
       const response = await fetch(endpoint, {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${apiKeyMistral}`,
+          'Authorization': `Bearer ${API_KEY_MISTRAL}`,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
@@ -184,7 +188,7 @@ Each bingo item should be a specific event, character, quote, or fact about the 
 
     if (newCompletedLines.length > 0) {
       setCompletedLines(prevLines => [...prevLines, ...newCompletedLines]);
-      return newCompletedLines.length * 3; // 3 points bonus for each new completed line
+      return newCompletedLines.length * 10; // 10 points bonus for each new completed line
     }
 
     return 0;
@@ -269,7 +273,7 @@ Each bingo item should be a specific event, character, quote, or fact about the 
           <div className="score-display">
             Score: {score}
             {completedLines.length > 0 && (
-              <span className="bonus-info"> (including {completedLines.length * 3} bonus points)</span>
+              <span className="bonus-info"> (including {completedLines.length * 10} bonus points)</span>
             )}
           </div>
           <div className="bingo-grid">
