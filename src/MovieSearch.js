@@ -5,30 +5,35 @@ import logo from './assets/logo.png';
 const API_KEY_OMDB = process.env.REACT_APP_OMDB_API_KEY;
 const API_KEY_MISTRAL = process.env.REACT_APP_MISTRAL_API_KEY;
 
+const BINGO_LINES = [
+  [0, 1, 2], [3, 4, 5], [6, 7, 8], // Rows
+  [0, 3, 6], [1, 4, 7], [2, 5, 8], // Columns
+  [0, 4, 8], [2, 4, 6] // Diagonals
+];
+
 function MovieSearch() {
   const [query, setQuery] = useState('');
   const [movie, setMovie] = useState(null);
   const [error, setError] = useState(null);
-  const [showBingo, setShowBingo] = useState(false);
-  const [bingoItems, setBingoItems] = useState([]);
   const [suggestions, setSuggestions] = useState([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
+  const [showBingo, setShowBingo] = useState(false);
+  const [bingoItems, setBingoItems] = useState([]);
   const [markedItems, setMarkedItems] = useState({});
   const [score, setScore] = useState(0);
   const [completedLines, setCompletedLines] = useState([]);
+
   const searchFormRef = useRef(null);
 
   useEffect(() => {
-    function handleClickOutside(event) {
+    const handleClickOutside = (event) => {
       if (searchFormRef.current && !searchFormRef.current.contains(event.target)) {
         setShowSuggestions(false);
       }
-    }
+    };
 
     document.addEventListener("mousedown", handleClickOutside);
-    return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
-    };
+    return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [searchFormRef]);
 
   const handleInputChange = async (e) => {
@@ -43,27 +48,119 @@ function MovieSearch() {
 
     try {
       const response = await fetch(`https://www.omdbapi.com/?s=${encodeURIComponent(value)}&apikey=${API_KEY_OMDB}`);
-      if (response.ok) {
-        const data = await response.json();
-        if (data.Response === 'True') {
-          setSuggestions(data.Search || []);
-        } else {
-          setSuggestions([]);
-        }
-      } else {
-        console.error("Error fetching suggestions:", response.status);
-        setSuggestions([]);
-      }
+      if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+      const data = await response.json();
+      setSuggestions(data.Response === 'True' ? data.Search || [] : []);
     } catch (err) {
       console.error('Error fetching suggestions:', err);
       setSuggestions([]);
     }
   };
 
-  const handleSuggestionClick = (title) => {
-    setQuery(title);
-    setSuggestions([]);
-    handleSearch(title);
+  const handleSearch = async (searchQuery = query) => {
+    setError(null);
+    setMovie(null);
+    setShowBingo(false);
+    resetBingoState();
+
+    if (searchQuery.trim() === '') {
+      setError('Please enter a movie title to search.');
+      return;
+    }
+
+    try {
+      const response = await fetch(`https://www.omdbapi.com/?t=${encodeURIComponent(searchQuery)}&apikey=${API_KEY_OMDB}&plot=full`);
+      if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+      const data = await response.json();
+      if (data.Response === 'True') {
+        setMovie({...data, starRating: parseFloat(data.imdbRating) / 2});
+        setSuggestions([]);
+        setShowSuggestions(false);
+      } else {
+        setError('Movie not found.');
+      }
+    } catch (err) {
+      console.error('Error fetching movie details:', err);
+      setError('Network error. Please try again.');
+    }
+  };
+
+  const generateBingo = async (movieData) => {
+    const prompt = `Create 9 short, simple bingo items for the movie "${movieData.Title}" (${movieData.Year}). Use this info:
+  
+  Plot: ${movieData.Plot}
+  Director: ${movieData.Director}
+  Actors: ${movieData.Actors}
+  Genre: ${movieData.Genre}
+  
+  Include:
+  - Specific events or quotes
+  - Recurring elements or actions (This should be at least 4 out of 9 items)
+  - Character traits or habits
+  - Visual motifs or symbols
+  
+  Keep each item under 5 words. Make them easy to spot while watching. List 9 items, one per line.`;
+  
+    try {
+      const response = await fetch('https://api.mistral.ai/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${API_KEY_MISTRAL}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          model: 'mistral-large-latest',
+          messages: [{ role: 'user', content: prompt }],
+          max_tokens: 250,
+          temperature: 0.7,
+        }),
+      });
+
+      if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+      const data = await response.json();
+      if (data.choices && data.choices.length > 0) {
+        const bingoItems = data.choices[0].message.content.trim().split('\n').slice(0, 9);
+        if (bingoItems.length === 9) {
+          setBingoItems(bingoItems);
+          setShowBingo(true);
+          resetBingoState();
+        } else {
+          throw new Error("Incorrect number of bingo items generated.");
+        }
+      } else {
+        throw new Error("Unexpected API response.");
+      }
+    } catch (err) {
+      console.error('Error generating Bingo:', err);
+      setError('Error generating Bingo. Please try again.');
+    }
+  };
+
+  const resetBingoState = () => {
+    setMarkedItems({});
+    setScore(0);
+    setCompletedLines([]);
+  };
+
+  const checkCompletedLines = (newMarkedItems) => {
+    return BINGO_LINES.filter(line => line.every(index => newMarkedItems[index]));
+  };
+
+  const calculateScore = (newMarkedItems) => {
+    const baseScore = Object.values(newMarkedItems).filter(Boolean).length;
+    const newCompletedLines = checkCompletedLines(newMarkedItems);
+    const bonusScore = Math.min(newCompletedLines.length * 3, 24);
+    setCompletedLines(newCompletedLines);
+    return baseScore + bonusScore;
+  };
+
+  const handleBingoItemClick = (index) => {
+    setMarkedItems(prev => {
+      const newMarkedItems = { ...prev, [index]: !prev[index] };
+      const newScore = calculateScore(newMarkedItems);
+      setScore(newScore);
+      return newMarkedItems;
+    });
   };
 
   const StarRating = ({ rating }) => {
@@ -80,142 +177,12 @@ function MovieSearch() {
       </div>
     );
   };
-  
-  const handleSearch = async (searchQuery) => {
-    setError(null);
-    setMovie(null);
-    setShowBingo(false);
-    setBingoItems([]);
-    setMarkedItems({});
-    setScore(0);
-    setCompletedLines([]);
-
-    const queryToSearch = searchQuery || query;
-
-    if (queryToSearch.trim() === '') {
-      setError('Please enter a movie title to search.');
-      return;
-    }
-
-    try {
-      const response = await fetch(`https://www.omdbapi.com/?t=${encodeURIComponent(queryToSearch)}&apikey=${API_KEY_OMDB}&plot=full`);
-      if (response.ok) {
-        const data = await response.json();
-        if (data.Response === 'True') {
-          const imdbRating = parseFloat(data.imdbRating);
-          const starRating = imdbRating / 2;
-          setMovie({...data, starRating});
-          setSuggestions([]);
-          setShowSuggestions(false);
-        } else {
-          setError('Movie not found.');
-        }
-      } else {
-        setError(`Error retrieving movie details: ${response.status}`);
-      }
-    } catch (err) {
-      console.error('Network error:', err);
-      setError('Network error. Please try again.');
-    }
-  };
-
-  const generateBingo = async (movieData) => {
-    const endpoint = 'https://api.mistral.ai/v1/chat/completions';
-
-    const prompt = `Generate 9 unique bingo items for the movie "${movieData.Title}" (${movieData.Year}). Use the following information to make the items as specific and relevant as possible:
-
-Plot: ${movieData.Plot}
-Director: ${movieData.Director}
-Actors: ${movieData.Actors}
-Genre: ${movieData.Genre}
-Awards: ${movieData.Awards}
-Runtime: ${movieData.Runtime}
-Rated: ${movieData.Rated}
-
-Each bingo item should be a specific event, character, quote, or fact about the movie. Make sure the items are varied and cover different aspects of the film. Respond with just the list of 9 items, each on a new line.`;
-
-    try {
-      const response = await fetch(endpoint, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${API_KEY_MISTRAL}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          model: 'mistral-large-latest',
-          messages: [{ role: 'user', content: prompt }],
-          max_tokens: 250,
-          temperature: 0.7,
-        }),
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        if (data.choices && data.choices.length > 0) {
-          const generatedText = data.choices[0].message.content.trim();
-          const bingoItems = generatedText.split('\n').filter((item) => item);
-
-          setBingoItems(bingoItems);
-          setShowBingo(true);
-          setMarkedItems({});
-          setScore(0);
-          setCompletedLines([]);
-        } else {
-          setError("Bingo generation error. Unexpected API response.");
-        }
-      } else {
-        setError(`Error generating Bingo: ${response.status}`);
-      }
-    } catch (err) {
-      console.error('Error generating Bingo:', err);
-      setError('Error generating Bingo.');
-    }
-  };
-
-  const checkCompletedLines = (newMarkedItems) => {
-    const lines = [
-      [0, 1, 2], [3, 4, 5], [6, 7, 8], // Rows
-      [0, 3, 6], [1, 4, 7], [2, 5, 8], // Columns
-      [0, 4, 8], [2, 4, 6] // Diagonals
-    ];
-
-    const newCompletedLines = lines.filter(line => 
-      line.every(index => newMarkedItems[index]) && 
-      !completedLines.some(completedLine => 
-        completedLine.every(index => line.includes(index))
-      )
-    );
-
-    if (newCompletedLines.length > 0) {
-      setCompletedLines(prevLines => [...prevLines, ...newCompletedLines]);
-      return newCompletedLines.length * 10; // 10 points bonus for each new completed line
-    }
-
-    return 0;
-  };
-
-  const handleBingoItemClick = (index) => {
-    setMarkedItems(prev => {
-      const newMarkedItems = { ...prev, [index]: !prev[index] };
-      const baseScore = Object.values(newMarkedItems).filter(Boolean).length;
-      const bonusScore = checkCompletedLines(newMarkedItems);
-      setScore(baseScore + bonusScore);
-      return newMarkedItems;
-    });
-  };
-
-  const handleLogoClick = () => {
-    window.location.reload();
-  };
 
   return (
     <div className="movie-search">
       <header className="header">
-        <img src={logo} alt="Movie Search Logo" className="logo" onClick={handleLogoClick} />
-        <form ref={searchFormRef} onSubmit={(e) => {
-          e.preventDefault();
-          handleSearch();
-        }} className="search-form">
+        <img src={logo} alt="Movie Search Logo" className="logo" onClick={() => window.location.reload()} />
+        <form ref={searchFormRef} onSubmit={(e) => { e.preventDefault(); handleSearch(); }} className="search-form">
           <input
             type="text"
             placeholder="Search for a movie..."
@@ -230,7 +197,7 @@ Each bingo item should be a specific event, character, quote, or fact about the 
                 <div 
                   key={movie.imdbID} 
                   className="suggestion-item" 
-                  onClick={() => handleSuggestionClick(movie.Title)}
+                  onClick={() => { setQuery(movie.Title); handleSearch(movie.Title); }}
                 >
                   {movie.Title} ({movie.Year})
                 </div>
@@ -267,13 +234,13 @@ Each bingo item should be a specific event, character, quote, or fact about the 
         </div>
       )}
 
-      {showBingo && bingoItems.length > 0 && (
+      {showBingo && bingoItems.length === 9 && (
         <div className="bingo-container fade-in">
           <h2 className="bingo-title">Movie Bingo Challenge</h2>
           <div className="score-display">
             Score: {score}
             {completedLines.length > 0 && (
-              <span className="bonus-info"> (including {completedLines.length * 10} bonus points)</span>
+              <span className="bonus-info"> (including {Math.min(completedLines.length * 3, 24)} bonus points)</span>
             )}
           </div>
           <div className="bingo-grid">
