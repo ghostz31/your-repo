@@ -1,6 +1,8 @@
 import React, { useState, useRef, useEffect } from 'react';
 import './MovieSearch.css';
 import logo from './assets/logo.png';
+import { db } from './firebaseConfig';
+import { doc, getDoc, setDoc } from 'firebase/firestore';
 
 const API_KEY_OMDB = process.env.REACT_APP_OMDB_API_KEY;
 const API_KEY_MISTRAL = process.env.REACT_APP_MISTRAL_API_KEY;
@@ -85,23 +87,57 @@ function MovieSearch() {
     }
   };
 
-  const generateBingo = async (movieData) => {
-    const prompt = `Create 9 short, simple bingo items for the movie "${movieData.Title}" (${movieData.Year}). Use this info:
-  
-  Plot: ${movieData.Plot}
-  Director: ${movieData.Director}
-  Actors: ${movieData.Actors}
-  Genre: ${movieData.Genre}
-  
-  Include:
-  - Specific events or quotes
-  - Recurring elements or actions (This should be at least 4 out of 9 items)
-  - Character traits or habits
-  - Visual motifs or symbols
-  
-  Keep each item under 5 words. Make them easy to spot while watching. List 9 items, one per line.`;
-  
+  const fetchBingoFromDatabase = async (movieId) => {
     try {
+      const bingoRef = doc(db, 'bingos', movieId);
+      const bingoDoc = await getDoc(bingoRef);
+      
+      if (bingoDoc.exists()) {
+        return bingoDoc.data().items;
+      }
+      return null;
+    } catch (error) {
+      console.error('Error fetching bingo from database:', error);
+      return null;
+    }
+  };
+
+  const saveBingoToDatabase = async (movieId, bingoItems) => {
+    try {
+      const bingoRef = doc(db, 'bingos', movieId);
+      await setDoc(bingoRef, { items: bingoItems });
+    } catch (error) {
+      console.error('Error saving bingo to database:', error);
+    }
+  };
+
+  const generateBingo = async (movieData) => {
+    try {
+      // First, check if a bingo already exists for this movie
+      const existingBingo = await fetchBingoFromDatabase(movieData.imdbID);
+      
+      if (existingBingo) {
+        setBingoItems(existingBingo);
+        setShowBingo(true);
+        resetBingoState();
+        return;
+      }
+
+      const prompt = `Create 9 short, simple bingo items for the movie "${movieData.Title}" (${movieData.Year}). Use this info:
+    
+      Plot: ${movieData.Plot}
+      Director: ${movieData.Director}
+      Actors: ${movieData.Actors}
+      Genre: ${movieData.Genre}
+      
+      Include:
+      - Specific events or quotes
+      - Recurring elements or actions (This should be at least 4 out of 9 items)
+      - Character traits or habits
+      - Visual motifs or symbols
+      
+      Keep each item under 5 words. Make them easy to spot while watching. List 9 items, one per line.`;
+    
       const response = await fetch('https://api.mistral.ai/v1/chat/completions', {
         method: 'POST',
         headers: {
@@ -119,9 +155,12 @@ function MovieSearch() {
       if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
       const data = await response.json();
       if (data.choices && data.choices.length > 0) {
-        const bingoItems = data.choices[0].message.content.trim().split('\n').slice(0, 9);
-        if (bingoItems.length === 9) {
-          setBingoItems(bingoItems);
+        const newBingoItems = data.choices[0].message.content.trim().split('\n').slice(0, 9);
+        if (newBingoItems.length === 9) {
+          // Save the newly generated bingo to the database
+          await saveBingoToDatabase(movieData.imdbID, newBingoItems);
+          
+          setBingoItems(newBingoItems);
           setShowBingo(true);
           resetBingoState();
         } else {
