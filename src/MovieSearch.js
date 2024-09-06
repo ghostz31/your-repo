@@ -111,64 +111,71 @@ function MovieSearch() {
     }
   };
 
+  const generateBingoItems = async (movieData) => {
+    const prompt = `Create 28 short, simple bingo items for the movie "${movieData.Title}" (${movieData.Year}). Use this info:
+    
+    Plot: ${movieData.Plot}
+    Director: ${movieData.Director}
+    Actors: ${movieData.Actors}
+    Genre: ${movieData.Genre}
+    
+    Include:
+    - Specific events or quotes
+    - Recurring elements or actions (This should be at least 10 out of 28 items)
+    - Character traits or habits
+    - Visual motifs or symbols
+    
+    Keep each item under 5 words. Make them easy to spot while watching. List 28 items, one per line. Do not number the items.`;
+
+    const response = await fetch('https://api.mistral.ai/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${API_KEY_MISTRAL}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: 'mistral-large-latest',
+        messages: [{ role: 'user', content: prompt }],
+        max_tokens: 500,
+        temperature: 0.7,
+      }),
+    });
+
+    if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+    const data = await response.json();
+    if (data.choices && data.choices.length > 0) {
+      return data.choices[0].message.content.trim().split('\n')
+        .filter(item => item.trim() !== '')  // Remove any empty lines
+        .slice(0, 28)  // Ensure we only take the first 28 items
+        .map(item => item.trim());  // Trim any leading/trailing whitespace
+    } else {
+      throw new Error("Unexpected API response.");
+    }
+  };
+
+  const getRandomBingoItems = (items, count) => {
+    const shuffled = [...items].sort(() => 0.5 - Math.random());
+    return shuffled.slice(0, count);
+  };
+
   const generateBingo = async (movieData) => {
     try {
       // First, check if a bingo already exists for this movie
-      const existingBingo = await fetchBingoFromDatabase(movieData.imdbID);
+      let bingoItems = await fetchBingoFromDatabase(movieData.imdbID);
       
-      if (existingBingo) {
-        setBingoItems(existingBingo);
-        setShowBingo(true);
-        resetBingoState();
-        return;
+      if (!bingoItems) {
+        // If not, generate 28 new items
+        bingoItems = await generateBingoItems(movieData);
+        // Save the newly generated bingo to the database
+        await saveBingoToDatabase(movieData.imdbID, bingoItems);
       }
 
-      const prompt = `Create 9 short, simple bingo items for the movie "${movieData.Title}" (${movieData.Year}). Use this info:
-    
-      Plot: ${movieData.Plot}
-      Director: ${movieData.Director}
-      Actors: ${movieData.Actors}
-      Genre: ${movieData.Genre}
+      // Select 9 random items from the 28
+      const randomItems = getRandomBingoItems(bingoItems, 9);
       
-      Include:
-      - Specific events or quotes
-      - Recurring elements or actions (This should be at least 4 out of 9 items)
-      - Character traits or habits
-      - Visual motifs or symbols
-      
-      Keep each item under 5 words. Make them easy to spot while watching. List 9 items, one per line.`;
-    
-      const response = await fetch('https://api.mistral.ai/v1/chat/completions', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${API_KEY_MISTRAL}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          model: 'mistral-large-latest',
-          messages: [{ role: 'user', content: prompt }],
-          max_tokens: 250,
-          temperature: 0.7,
-        }),
-      });
-
-      if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
-      const data = await response.json();
-      if (data.choices && data.choices.length > 0) {
-        const newBingoItems = data.choices[0].message.content.trim().split('\n').slice(0, 9);
-        if (newBingoItems.length === 9) {
-          // Save the newly generated bingo to the database
-          await saveBingoToDatabase(movieData.imdbID, newBingoItems);
-          
-          setBingoItems(newBingoItems);
-          setShowBingo(true);
-          resetBingoState();
-        } else {
-          throw new Error("Incorrect number of bingo items generated.");
-        }
-      } else {
-        throw new Error("Unexpected API response.");
-      }
+      setBingoItems(randomItems);
+      setShowBingo(true);
+      resetBingoState();
     } catch (err) {
       console.error('Error generating Bingo:', err);
       setError('Error generating Bingo. Please try again.');
@@ -245,7 +252,7 @@ function MovieSearch() {
           )}
         </form>
         <div className="rules-description">
-          <p>Rules are simple: Watch the movie, mark off items on your bingo card as they appear, and take a drink ! </p>
+          <p>Rules are simple: Watch the movie, mark off items on your bingo card as they appear, and take a drink!</p>
         </div>
       </header>
 
