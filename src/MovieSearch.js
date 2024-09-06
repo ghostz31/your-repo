@@ -26,7 +26,6 @@ function MovieSearch() {
   const [score, setScore] = useState(0);
   const [completedLines, setCompletedLines] = useState([]);
   const [userLanguage, setUserLanguage] = useState('en');
-  const [isButtonVisible, setIsButtonVisible] = useState(true);
 
   const searchFormRef = useRef(null);
 
@@ -39,21 +38,8 @@ function MovieSearch() {
 
     document.addEventListener("mousedown", handleClickOutside);
     detectUserLanguage();
-
-    let lastScrollY = window.pageYOffset;
-    const handleScroll = () => {
-      const currentScrollY = window.pageYOffset;
-      setIsButtonVisible(currentScrollY <= lastScrollY);
-      lastScrollY = currentScrollY;
-    };
-
-    window.addEventListener('scroll', handleScroll, { passive: true });
-
-    return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
-      window.removeEventListener('scroll', handleScroll);
-    };
-  }, []);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [searchFormRef]);
 
   const detectUserLanguage = () => {
     const language = navigator.language || navigator.userLanguage;
@@ -310,12 +296,15 @@ function MovieSearch() {
               <span className="meta-item">Director: {movie.Director}</span>
               <span className="meta-item">Stars: {movie.Actors}</span>
             </div>
-            <div className={`bingo-button-container ${isButtonVisible ? '' : 'hidden'}`}>
-              <button className="bingo-button" onClick={() => generateBingo(movie)}>
-                Generate Bingo
-              </button>
-            </div>
           </div>
+        </div>
+      )}
+
+      {movie && !showBingo && (
+        <div className="bingo-button-container">
+          <button className="bingo-button" onClick={() => generateBingo(movie)}>
+            Generate Bingo
+          </button>
         </div>
       )}
 
