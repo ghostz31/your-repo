@@ -175,7 +175,7 @@ body {
 }
 
 .bingo-button-container {
-  display: none; /* Caché par défaut, affiché uniquement sur mobile */
+  margin-top: 1rem;
 }
 
 .bingo-button {
@@ -316,28 +316,16 @@ body {
   }
 
   .bingo-button-container {
-    display: block;
     position: fixed;
     bottom: 20px;
+    left: 20px;
     right: 20px;
     z-index: 1000;
   }
 
   .bingo-button {
-    width: auto;
-    padding: 0.75rem 1.5rem;
-    font-size: 1rem;
-    background-color: var(--secondary-color);
-    color: white;
-    border: none;
-    border-radius: 50px;
-    cursor: pointer;
-    transition: background-color var(--transition-speed) ease;
+    width: 100%;
     box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
-  }
-
-  .bingo-button:hover, .bingo-button:active {
-    background-color: var(--primary-color);
   }
 
   .movie-details {
