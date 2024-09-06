@@ -291,9 +291,6 @@ function MovieSearch() {
               <span className="meta-item">Director: {movie.Director}</span>
               <span className="meta-item">Stars: {movie.Actors}</span>
             </div>
-            <button className="bingo-button" onClick={() => generateBingo(movie)} disabled={isGeneratingBingo}>
-              {isGeneratingBingo ? 'Generating Bingo...' : 'Generate Bingo'}
-            </button>
           </div>
         </div>
       )}
@@ -331,6 +328,18 @@ function MovieSearch() {
               Back to Movie Details
             </button>
           </div>
+        </div>
+      )}
+
+      {movie && !showBingo && (
+        <div className="floating-bingo-button">
+          <button 
+            className="bingo-button" 
+            onClick={() => generateBingo(movie)} 
+            disabled={isGeneratingBingo}
+          >
+            {isGeneratingBingo ? 'Generating Bingo...' : 'Generate Bingo'}
+          </button>
         </div>
       )}
     </div>
