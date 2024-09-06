@@ -244,6 +244,9 @@ function MovieSearch() {
             </div>
           )}
         </form>
+        <div className="rules-description">
+          <p>The rules are simple: Watch the movie, mark off items on your bingo card as they appear, and enjoy responsibly. Each marked item earns points, with bonus points for completed lines. Have fun and may the best movie buff win!</p>
+        </div>
       </header>
 
       {error && <p className="error">{error}</p>}
