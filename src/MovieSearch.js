@@ -3,6 +3,7 @@ import './MovieSearch.css';
 import logo from './assets/logo.png';
 import { db } from './firebaseConfig';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
+import { RefreshCw } from 'lucide-react';
 
 const API_KEY_OMDB = process.env.REACT_APP_OMDB_API_KEY;
 const API_KEY_MISTRAL = process.env.REACT_APP_MISTRAL_API_KEY;
@@ -21,6 +22,7 @@ function MovieSearch() {
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [showBingo, setShowBingo] = useState(false);
   const [bingoItems, setBingoItems] = useState([]);
+  const [allBingoItems, setAllBingoItems] = useState([]);
   const [markedItems, setMarkedItems] = useState({});
   const [score, setScore] = useState(0);
   const [completedLines, setCompletedLines] = useState([]);
@@ -170,16 +172,19 @@ function MovieSearch() {
         await saveBingoToDatabase(movieData.imdbID, bingoItems);
       }
 
-      // Select 9 random items from the 28
-      const randomItems = getRandomBingoItems(bingoItems, 9);
-      
-      setBingoItems(randomItems);
-      setShowBingo(true);
-      resetBingoState();
+      setAllBingoItems(bingoItems); // Store all 28 items
+      refreshBingoItems(); // Call new function to set 9 random items
     } catch (err) {
       console.error('Error generating Bingo:', err);
       setError('Error generating Bingo. Please try again.');
     }
+  };
+
+  const refreshBingoItems = () => {
+    const randomItems = getRandomBingoItems(allBingoItems, 9);
+    setBingoItems(randomItems);
+    setShowBingo(true);
+    resetBingoState();
   };
 
   const resetBingoState = () => {
@@ -285,23 +290,31 @@ function MovieSearch() {
 
       {showBingo && bingoItems.length === 9 && (
         <div className="bingo-container fade-in">
-          <h2 className="bingo-title">Movie Bingo Challenge</h2>
-          <div className="score-display">
-            Score: {score}
-            {completedLines.length > 0 && (
-              <span className="bonus-info"> (including {Math.min(completedLines.length * 3, 24)} bonus points)</span>
-            )}
-          </div>
-          <div className="bingo-grid">
-            {bingoItems.map((item, index) => (
-              <div 
-                key={index} 
-                className={`bingo-item ${markedItems[index] ? 'marked' : ''}`}
-                onClick={() => handleBingoItemClick(index)}
-              >
-                {item}
-              </div>
-            ))}
+          <div className="bingo-content">
+            <div className="bingo-header">
+              <h2 className="bingo-title">Get your drinks ready!</h2>
+              <button className="refresh-button" onClick={refreshBingoItems}>
+                <RefreshCw size={20} />
+                Refresh Bingo
+              </button>
+            </div>
+            <div className="score-display">
+              Score: {score}
+              {completedLines.length > 0 && (
+                <span className="bonus-info"> (including {Math.min(completedLines.length * 3, 24)} bonus points)</span>
+              )}
+            </div>
+            <div className="bingo-grid">
+              {bingoItems.map((item, index) => (
+                <div 
+                  key={index} 
+                  className={`bingo-item ${markedItems[index] ? 'marked' : ''}`}
+                  onClick={() => handleBingoItemClick(index)}
+                >
+                  {item}
+                </div>
+              ))}
+            </div>
           </div>
           <div className="back-to-movie-container">
             <button className="bingo-button back-to-movie" onClick={() => setShowBingo(false)}>
