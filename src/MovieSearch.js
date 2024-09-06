@@ -6,7 +6,6 @@ import { doc, getDoc, setDoc } from 'firebase/firestore';
 
 const API_KEY_OMDB = process.env.REACT_APP_OMDB_API_KEY;
 const API_KEY_MISTRAL = process.env.REACT_APP_MISTRAL_API_KEY;
-const API_KEY_TRANSLATION = process.env.REACT_APP_TRANSLATION_API_KEY;
 
 const BINGO_LINES = [
   [0, 1, 2], [3, 4, 5], [6, 7, 8], // Rows
@@ -25,7 +24,6 @@ function MovieSearch() {
   const [markedItems, setMarkedItems] = useState({});
   const [score, setScore] = useState(0);
   const [completedLines, setCompletedLines] = useState([]);
-  const [userLanguage, setUserLanguage] = useState('en');
 
   const searchFormRef = useRef(null);
 
@@ -37,36 +35,8 @@ function MovieSearch() {
     };
 
     document.addEventListener("mousedown", handleClickOutside);
-    detectUserLanguage();
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [searchFormRef]);
-
-  const detectUserLanguage = () => {
-    const language = navigator.language || navigator.userLanguage;
-    setUserLanguage(language.split('-')[0]); // Use only the primary language code
-  };
-
-  const translateText = async (text, targetLanguage) => {
-    try {
-      const response = await fetch(`https://translation.googleapis.com/language/translate/v2?key=${API_KEY_TRANSLATION}`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          q: text,
-          target: targetLanguage,
-        }),
-      });
-
-      if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
-      const data = await response.json();
-      return data.data.translations[0].translatedText;
-    } catch (error) {
-      console.error('Translation error:', error);
-      return text; // Return original text if translation fails
-    }
-  };
 
   const handleInputChange = async (e) => {
     const value = e.target.value;
@@ -143,11 +113,11 @@ function MovieSearch() {
 
   const generateBingo = async (movieData) => {
     try {
+      // First, check if a bingo already exists for this movie
       const existingBingo = await fetchBingoFromDatabase(movieData.imdbID);
       
       if (existingBingo) {
-        const translatedBingo = await Promise.all(existingBingo.map(item => translateText(item, userLanguage)));
-        setBingoItems(translatedBingo);
+        setBingoItems(existingBingo);
         setShowBingo(true);
         resetBingoState();
         return;
@@ -187,10 +157,10 @@ function MovieSearch() {
       if (data.choices && data.choices.length > 0) {
         const newBingoItems = data.choices[0].message.content.trim().split('\n').slice(0, 9);
         if (newBingoItems.length === 9) {
+          // Save the newly generated bingo to the database
           await saveBingoToDatabase(movieData.imdbID, newBingoItems);
           
-          const translatedBingo = await Promise.all(newBingoItems.map(item => translateText(item, userLanguage)));
-          setBingoItems(translatedBingo);
+          setBingoItems(newBingoItems);
           setShowBingo(true);
           resetBingoState();
         } else {
@@ -296,15 +266,10 @@ function MovieSearch() {
               <span className="meta-item">Director: {movie.Director}</span>
               <span className="meta-item">Stars: {movie.Actors}</span>
             </div>
+            <button className="bingo-button" onClick={() => generateBingo(movie)}>
+              Generate Bingo
+            </button>
           </div>
-        </div>
-      )}
-
-      {movie && !showBingo && (
-        <div className="bingo-button-container">
-          <button className="bingo-button" onClick={() => generateBingo(movie)}>
-            Generate Bingo
-          </button>
         </div>
       )}
 
