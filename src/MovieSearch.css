@@ -133,6 +133,7 @@ body {
   flex-direction: column;
   gap: 1rem;
   margin-top: 2rem;
+  padding-bottom: 80px; /* Ajout de padding pour le bouton flottant */
 }
 
 .movie-poster {
@@ -191,10 +192,21 @@ body {
   margin-right: 2px;
 }
 
-.bingo-button {
-  display: block;
+.generate-bingo-container {
+  position: fixed;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 1000;
   width: 100%;
-  padding: 1rem 1.5rem;
+  max-width: 300px;
+  padding: 0 20px;
+  box-sizing: border-box;
+}
+
+.generate-bingo-button {
+  width: 100%;
+  padding: 15px;
   font-size: 1.1rem;
   background-color: var(--secondary-color);
   color: white;
@@ -203,12 +215,13 @@ body {
   cursor: pointer;
   transition: all var(--transition-speed) ease;
   text-align: center;
-  margin-top: 1rem;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
 }
 
-.bingo-button:hover {
+.generate-bingo-button:hover {
   background-color: var(--primary-color);
   transform: translateY(-2px);
+  box-shadow: 0 6px 12px rgba(0, 0, 0, 0.3);
 }
 
 .bingo-container {
@@ -300,7 +313,6 @@ body {
 }
 
 .back-to-movie-container {
-  position: static;
   margin-top: 20px;
 }
 
@@ -309,6 +321,20 @@ body {
   max-width: 300px;
   margin: 0 auto;
   display: block;
+  padding: 1rem 1.5rem;
+  font-size: 1.1rem;
+  background-color: var(--secondary-color);
+  color: white;
+  border: none;
+  border-radius: 50px;
+  cursor: pointer;
+  transition: all var(--transition-speed) ease;
+  text-align: center;
+}
+
+.bingo-button.back-to-movie:hover {
+  background-color: var(--primary-color);
+  transform: translateY(-2px);
 }
 
 .error {
@@ -369,7 +395,6 @@ body {
   .refresh-button {
     font-size: 0.9rem;
     padding: 0.4rem 0.8rem;
-    position: relative;
   }
 
   .rules-description {
@@ -448,7 +473,8 @@ body {
     font-size: 1.8rem;
   }
 
-  .bingo-button {
+  .generate-bingo-button,
+  .bingo-button.back-to-movie {
     font-size: 1.2rem;
     padding: 1.2rem 2rem;
   }
@@ -488,7 +514,8 @@ body {
     padding: 1rem;
   }
 
-  .bingo-button {
+  .generate-bingo-button,
+  .bingo-button.back-to-movie {
     font-size: 1.3rem;
     padding: 1.5rem 2.5rem;
   }

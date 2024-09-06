@@ -3,7 +3,6 @@ import './MovieSearch.css';
 import logo from './assets/logo.png';
 import { db } from './firebaseConfig';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
-import { RefreshCw } from 'lucide-react';
 
 const API_KEY_OMDB = process.env.REACT_APP_OMDB_API_KEY;
 const API_KEY_MISTRAL = process.env.REACT_APP_MISTRAL_API_KEY;
@@ -13,6 +12,16 @@ const BINGO_LINES = [
   [0, 3, 6], [1, 4, 7], [2, 5, 8], // Columns
   [0, 4, 8], [2, 4, 6] // Diagonals
 ];
+
+// Custom RefreshIcon component
+const RefreshIcon = () => (
+  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M23 4v6h-6"></path>
+    <path d="M1 20v-6h6"></path>
+    <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10"></path>
+    <path d="M20.49 15a9 9 0 0 1-14.85 3.36L1 14"></path>
+  </svg>
+);
 
 function MovieSearch() {
   const [query, setQuery] = useState('');
@@ -281,7 +290,9 @@ function MovieSearch() {
               <span className="meta-item">Director: {movie.Director}</span>
               <span className="meta-item">Stars: {movie.Actors}</span>
             </div>
-            <button className="bingo-button" onClick={() => generateBingo(movie)}>
+          </div>
+          <div className="generate-bingo-container">
+            <button className="generate-bingo-button" onClick={() => generateBingo(movie)}>
               Generate Bingo
             </button>
           </div>
@@ -292,9 +303,9 @@ function MovieSearch() {
         <div className="bingo-container fade-in">
           <div className="bingo-content">
             <div className="bingo-header">
-              <h2 className="bingo-title">Get your drinks ready!</h2>
+              <h2 className="bingo-title">Movie Bingo Challenge</h2>
               <button className="refresh-button" onClick={refreshBingoItems}>
-                <RefreshCw size={20} />
+                <RefreshIcon />
                 Refresh Bingo
               </button>
             </div>
