@@ -26,6 +26,7 @@ function MovieSearch() {
   const [markedItems, setMarkedItems] = useState({});
   const [score, setScore] = useState(0);
   const [completedLines, setCompletedLines] = useState([]);
+  const [isGeneratingBingo, setIsGeneratingBingo] = useState(false);
 
   const searchFormRef = useRef(null);
 
@@ -147,9 +148,9 @@ function MovieSearch() {
     const data = await response.json();
     if (data.choices && data.choices.length > 0) {
       return data.choices[0].message.content.trim().split('\n')
-        .filter(item => item.trim() !== '')  // Remove any empty lines
-        .slice(0, 28)  // Ensure we only take the first 28 items
-        .map(item => item.trim());  // Trim any leading/trailing whitespace
+        .filter(item => item.trim() !== '')
+        .slice(0, 28)
+        .map(item => item.trim());
     } else {
       throw new Error("Unexpected API response.");
     }
@@ -161,30 +162,39 @@ function MovieSearch() {
   };
 
   const generateBingo = async (movieData) => {
+    setIsGeneratingBingo(true);
+    setShowBingo(true);
+    
+    // Display placeholder items immediately
+    const placeholderItems = Array(9).fill("Loading...");
+    setBingoItems(placeholderItems);
+
     try {
-      // First, check if a bingo already exists for this movie
       let bingoItems = await fetchBingoFromDatabase(movieData.imdbID);
       
       if (!bingoItems) {
-        // If not, generate 28 new items
         bingoItems = await generateBingoItems(movieData);
-        // Save the newly generated bingo to the database
         await saveBingoToDatabase(movieData.imdbID, bingoItems);
       }
 
-      setAllBingoItems(bingoItems); // Store all 28 items
-      refreshBingoItems(); // Call new function to set 9 random items
+      setAllBingoItems(bingoItems);
+      const randomItems = getRandomBingoItems(bingoItems, 9);
+      setBingoItems(randomItems);
     } catch (err) {
       console.error('Error generating Bingo:', err);
       setError('Error generating Bingo. Please try again.');
+      setShowBingo(false);
+    } finally {
+      setIsGeneratingBingo(false);
     }
   };
 
   const refreshBingoItems = () => {
-    const randomItems = getRandomBingoItems(allBingoItems, 9);
-    setBingoItems(randomItems);
-    setShowBingo(true);
-    resetBingoState();
+    if (allBingoItems.length > 0) {
+      const randomItems = getRandomBingoItems(allBingoItems, 9);
+      setBingoItems(randomItems);
+      resetBingoState();
+    }
   };
 
   const resetBingoState = () => {
@@ -281,19 +291,19 @@ function MovieSearch() {
               <span className="meta-item">Director: {movie.Director}</span>
               <span className="meta-item">Stars: {movie.Actors}</span>
             </div>
-            <button className="bingo-button" onClick={() => generateBingo(movie)}>
-              Generate Bingo
+            <button className="bingo-button" onClick={() => generateBingo(movie)} disabled={isGeneratingBingo}>
+              {isGeneratingBingo ? 'Generating Bingo...' : 'Generate Bingo'}
             </button>
           </div>
         </div>
       )}
 
-      {showBingo && bingoItems.length === 9 && (
+      {showBingo && (
         <div className="bingo-container fade-in">
           <div className="bingo-content">
             <div className="bingo-header">
-              <h2 className="bingo-title">Get your drinks ready !</h2>
-              <button className="refresh-button" onClick={refreshBingoItems}>
+              <h2 className="bingo-title">Get your drinks ready!</h2>
+              <button className="refresh-button" onClick={refreshBingoItems} disabled={isGeneratingBingo}>
                 <RefreshCw size={20} />
                 Refresh Bingo
               </button>
@@ -308,8 +318,8 @@ function MovieSearch() {
               {bingoItems.map((item, index) => (
                 <div 
                   key={index} 
-                  className={`bingo-item ${markedItems[index] ? 'marked' : ''}`}
-                  onClick={() => handleBingoItemClick(index)}
+                  className={`bingo-item ${markedItems[index] ? 'marked' : ''} ${isGeneratingBingo ? 'loading' : ''}`}
+                  onClick={() => !isGeneratingBingo && handleBingoItemClick(index)}
                 >
                   {item}
                 </div>

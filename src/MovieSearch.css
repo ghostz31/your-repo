@@ -328,6 +328,29 @@ body {
   animation: fadeIn 0.5s ease-out;
 }
 
+.bingo-item.loading {
+  background-color: #f0f0f0;
+  color: #999;
+  cursor: not-allowed;
+}
+
+.bingo-item.loading:hover {
+  transform: none;
+  box-shadow: 0 2px 4px var(--shadow-color);
+}
+
+.bingo-button:disabled,
+.refresh-button:disabled {
+  background-color: #ccc;
+  cursor: not-allowed;
+}
+
+.bingo-button:disabled:hover,
+.refresh-button:disabled:hover {
+  background-color: #ccc;
+  transform: none;
+}
+
 @media (max-width: 767px) {
   .movie-search {
     padding: 0.5rem;
@@ -500,36 +523,4 @@ body {
     height: auto;
     min-height: 100vh;
   }
-}
-
-.generate-bingo-container {
-  position: fixed;
-  bottom: 20px;
-  left: 50%;
-  transform: translateX(-50%);
-  z-index: 1000;
-  width: 100%;
-  max-width: 300px;
-  padding: 0 20px;
-  box-sizing: border-box;
-}
-
-.generate-bingo-button {
-  width: 100%;
-  padding: 15px;
-  font-size: 1.1rem;
-  background-color: var(--secondary-color);
-  color: white;
-  border: none;
-  border-radius: 50px;
-  cursor: pointer;
-  transition: all var(--transition-speed) ease;
-  text-align: center;
-  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
-}
-
-.generate-bingo-button:hover {
-  background-color: var(--primary-color);
-  transform: translateY(-2px);
-  box-shadow: 0 6px 12px rgba(0, 0, 0, 0.3);
 }
