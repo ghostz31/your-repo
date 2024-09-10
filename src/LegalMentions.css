@@ -1,0 +1,44 @@
+.legal-mentions {
+    max-width: 800px;
+    margin: 0 auto;
+    padding: 2rem;
+    background-color: var(--card-bg-color);
+    border-radius: 15px;
+    box-shadow: 0 4px 6px var(--shadow-color);
+  }
+  
+  .legal-mentions h1 {
+    color: var(--primary-color);
+    margin-bottom: 1.5rem;
+  }
+  
+  .legal-mentions section {
+    margin-bottom: 2rem;
+  }
+  
+  .legal-mentions h2 {
+    color: var(--secondary-color);
+    margin-bottom: 1rem;
+  }
+  
+  .legal-mentions p {
+    margin-bottom: 0.5rem;
+  }
+  
+  @media (max-width: 767px) {
+    .legal-mentions {
+      padding: 1rem;
+    }
+  
+    .legal-mentions h1 {
+      font-size: 1.5rem;
+    }
+  
+    .legal-mentions h2 {
+      font-size: 1.2rem;
+    }
+  
+    .legal-mentions p {
+      font-size: 0.9rem;
+    }
+  }

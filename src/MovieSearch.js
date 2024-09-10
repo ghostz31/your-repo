@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import './MovieSearch.css';
 import logo from './assets/logo.png';
 import { db } from './firebaseConfig';
@@ -92,7 +93,6 @@ function MovieSearch() {
       const data = await response.json();
       const apiResults = data.Response === 'True' ? data.Search || [] : [];
       
-      // Combine local and API results, remove duplicates
       const combinedResults = [...localResults, ...apiResults];
       const uniqueResults = combinedResults.filter((movie, index, self) =>
         index === self.findIndex((t) => t.imdbID === movie.imdbID)
@@ -101,7 +101,7 @@ function MovieSearch() {
       setSuggestions(uniqueResults.slice(0, 5));
     } catch (err) {
       console.error('Error fetching suggestions:', err);
-      setSuggestions(localResults);  // Fall back to local results if API fails
+      setSuggestions(localResults);
     }
   };
 
@@ -292,7 +292,9 @@ List 28 items, one per line. Do not number them.`;
   return (
     <div className="movie-search">
       <header className="header">
-        <img src={logo} alt="Movie Search Logo" className="logo" onClick={() => window.location.reload()} />
+        <Link to="/">
+          <img src={logo} alt="Movie Search Logo" className="logo" />
+        </Link>
         <form ref={searchFormRef} onSubmit={(e) => { e.preventDefault(); handleSearch(); }} className="search-form">
           <input
             type="text"
@@ -367,9 +369,9 @@ List 28 items, one per line. Do not number them.`;
                   key={index} 
                   className={`bingo-item ${markedItems[index] ? 'marked' : ''} ${isGeneratingBingo ? 'loading' : ''}`}
                   onClick={() => !isGeneratingBingo && handleBingoItemClick(index)}
-                >{item}
-                </div>
-              ))}
+                >
+                  {item}
+                </div>))}
             </div>
           </div>
           <div className="back-to-movie-container">
@@ -391,6 +393,10 @@ List 28 items, one per line. Do not number them.`;
           </button>
         </div>
       )}
+
+      <footer className="footer">
+        <Link to="/legal-mentions" className="legal-link">Legal Mentions</Link>
+      </footer>
     </div>
   );
 }
