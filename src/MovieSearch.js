@@ -4,6 +4,7 @@ import logo from './assets/logo.png';
 import { db } from './firebaseConfig';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { RefreshCw } from 'lucide-react';
+import Fuse from 'fuse.js';
 
 const API_KEY_OMDB = process.env.REACT_APP_OMDB_API_KEY;
 const API_KEY_MISTRAL = process.env.REACT_APP_MISTRAL_API_KEY;
@@ -27,6 +28,8 @@ function MovieSearch() {
   const [score, setScore] = useState(0);
   const [completedLines, setCompletedLines] = useState([]);
   const [isGeneratingBingo, setIsGeneratingBingo] = useState(false);
+  const [allMovies, setAllMovies] = useState([]);
+  const [fuse, setFuse] = useState(null);
 
   const searchFormRef = useRef(null);
 
@@ -41,6 +44,33 @@ function MovieSearch() {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [searchFormRef]);
 
+  useEffect(() => {
+    fetchPopularMovies();
+  }, []);
+
+  useEffect(() => {
+    if (allMovies.length > 0) {
+      const fuseInstance = new Fuse(allMovies, {
+        keys: ['Title'],
+        threshold: 0.4,
+      });
+      setFuse(fuseInstance);
+    }
+  }, [allMovies]);
+
+  const fetchPopularMovies = async () => {
+    try {
+      const response = await fetch(`https://www.omdbapi.com/?s=popular&type=movie&apikey=${API_KEY_OMDB}`);
+      if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+      const data = await response.json();
+      if (data.Response === 'True') {
+        setAllMovies(data.Search || []);
+      }
+    } catch (err) {
+      console.error('Error fetching popular movies:', err);
+    }
+  };
+
   const handleInputChange = async (e) => {
     const value = e.target.value;
     setQuery(value);
@@ -51,14 +81,27 @@ function MovieSearch() {
       return;
     }
 
+    let localResults = [];
+    if (fuse) {
+      localResults = fuse.search(value).map(result => result.item).slice(0, 3);
+    }
+
     try {
       const response = await fetch(`https://www.omdbapi.com/?s=${encodeURIComponent(value)}&apikey=${API_KEY_OMDB}`);
       if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
       const data = await response.json();
-      setSuggestions(data.Response === 'True' ? data.Search || [] : []);
+      const apiResults = data.Response === 'True' ? data.Search || [] : [];
+      
+      // Combine local and API results, remove duplicates
+      const combinedResults = [...localResults, ...apiResults];
+      const uniqueResults = combinedResults.filter((movie, index, self) =>
+        index === self.findIndex((t) => t.imdbID === movie.imdbID)
+      );
+
+      setSuggestions(uniqueResults.slice(0, 5));
     } catch (err) {
       console.error('Error fetching suggestions:', err);
-      setSuggestions([]);
+      setSuggestions(localResults);  // Fall back to local results if API fails
     }
   };
 
@@ -115,20 +158,28 @@ function MovieSearch() {
   };
 
   const generateBingoItems = async (movieData) => {
-    const prompt = `Create 28 short, simple bingo items for the movie "${movieData.Title}" (${movieData.Year}). Use this info:
-    
-    Plot: ${movieData.Plot}
-    Director: ${movieData.Director}
-    Actors: ${movieData.Actors}
-    Genre: ${movieData.Genre}
-    
-    Include:
-    - Specific events or quotes
-    - Recurring elements or actions (This should be at least 10 out of 28 items)
-    - Character traits or habits
-    - Visual motifs or symbols
-    
-    Keep each item under 5 words. Make them easy to spot while watching. List 28 items, one per line. Do not number the items.`;
+    const prompt = `Generate 28 concise, movie-specific bingo items for "${movieData.Title}" (${movieData.Year}). Use this info:
+
+Plot: ${movieData.Plot}
+Director: ${movieData.Director}
+Actors: ${movieData.Actors}
+Genre: ${movieData.Genre}
+
+Include a mix of:
+- Specific plot events (7 items)
+- Notable character actions or decisions (6 items)
+- Recurring visual elements or motifs (5 items)
+- Memorable quotes or dialogue (5 items)
+- Unique character traits or habits (5 items)
+
+Guidelines:
+- Be specific to this movie's events, characters, and style
+- Avoid generic items that could apply to many films
+- Keep each item under 5 words
+- Make items easy to spot while watching
+- For recurring elements, include frequency (e.g., "Hero says catchphrase (3x)")
+
+List 28 items, one per line. Do not number them.`;
 
     const response = await fetch('https://api.mistral.ai/v1/chat/completions', {
       method: 'POST',
@@ -165,7 +216,6 @@ function MovieSearch() {
     setIsGeneratingBingo(true);
     setShowBingo(true);
     
-    // Display placeholder items immediately
     const placeholderItems = Array(9).fill("Loading...");
     setBingoItems(placeholderItems);
 
@@ -317,8 +367,7 @@ function MovieSearch() {
                   key={index} 
                   className={`bingo-item ${markedItems[index] ? 'marked' : ''} ${isGeneratingBingo ? 'loading' : ''}`}
                   onClick={() => !isGeneratingBingo && handleBingoItemClick(index)}
-                >
-                  {item}
+                >{item}
                 </div>
               ))}
             </div>

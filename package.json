@@ -10,6 +10,7 @@
     "axios": "^1.7.5",
     "express": "^4.19.2",
     "firebase": "^10.13.1",
+    "fuse.js": "^7.0.0",
     "lucide-react": "^0.439.0",
     "openai": "^4.56.1",
     "react": "^18.3.1",
