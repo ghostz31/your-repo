@@ -4,7 +4,7 @@ import './MovieSearch.css';
 import logo from './assets/logo.png';
 import { db } from './firebaseConfig';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
-import { RefreshCw } from 'lucide-react';
+import { RefreshCw, Plus, Minus } from 'lucide-react';
 import Fuse from 'fuse.js';
 
 const API_KEY_OMDB = process.env.REACT_APP_OMDB_API_KEY;
@@ -31,6 +31,7 @@ function MovieSearch() {
   const [isGeneratingBingo, setIsGeneratingBingo] = useState(false);
   const [allMovies, setAllMovies] = useState([]);
   const [fuse, setFuse] = useState(null);
+  const [itemCounts, setItemCounts] = useState({});
 
   const searchFormRef = useRef(null);
 
@@ -249,6 +250,7 @@ List 28 items, one per line. Do not number them.`;
 
   const resetBingoState = () => {
     setMarkedItems({});
+    setItemCounts({});
     setScore(0);
     setCompletedLines([]);
   };
@@ -257,20 +259,31 @@ List 28 items, one per line. Do not number them.`;
     return BINGO_LINES.filter(line => line.every(index => newMarkedItems[index]));
   };
 
-  const calculateScore = (newMarkedItems) => {
+  const calculateScore = (newMarkedItems, newItemCounts) => {
     const baseScore = Object.values(newMarkedItems).filter(Boolean).length;
+    const countScore = Object.values(newItemCounts).reduce((sum, count) => sum + count, 0);
     const newCompletedLines = checkCompletedLines(newMarkedItems);
     const bonusScore = Math.min(newCompletedLines.length * 3, 24);
     setCompletedLines(newCompletedLines);
-    return baseScore + bonusScore;
+    return baseScore + countScore + bonusScore;
   };
 
   const handleBingoItemClick = (index) => {
     setMarkedItems(prev => {
       const newMarkedItems = { ...prev, [index]: !prev[index] };
-      const newScore = calculateScore(newMarkedItems);
+      const newScore = calculateScore(newMarkedItems, itemCounts);
       setScore(newScore);
       return newMarkedItems;
+    });
+  };
+
+  const handleItemCountChange = (index, change) => {
+    setItemCounts(prev => {
+      const newCount = Math.max(0, (prev[index] || 0) + change);
+      const newCounts = { ...prev, [index]: newCount };
+      const newScore = calculateScore(markedItems, newCounts);
+      setScore(newScore);
+      return newCounts;
     });
   };
 
@@ -357,8 +370,7 @@ List 28 items, one per line. Do not number them.`;
                 Refresh Bingo
               </button>
             </div>
-            <div className="score-display">
-              Score: {score}
+            <div className="score-display"> Score: {score}
               {completedLines.length > 0 && (
                 <span className="bonus-info"> (including {Math.min(completedLines.length * 3, 24)} bonus points)</span>
               )}
@@ -371,7 +383,29 @@ List 28 items, one per line. Do not number them.`;
                   onClick={() => !isGeneratingBingo && handleBingoItemClick(index)}
                 >
                   {item}
-                </div>))}
+                  <div className="item-counter">
+                    <button 
+                      className="counter-button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleItemCountChange(index, -1);
+                      }}
+                    >
+                      <Minus size={16} />
+                    </button>
+                    <span className="count-display">{itemCounts[index] || 0}</span>
+                    <button 
+                      className="counter-button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleItemCountChange(index, 1);
+                      }}
+                    >
+                      <Plus size={16} />
+                    </button>
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
           <div className="back-to-movie-container">
