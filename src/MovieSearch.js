@@ -36,17 +36,7 @@ function MovieSearch() {
   const searchFormRef = useRef(null);
 
   useEffect(() => {
-    const handleClickOutside = (event) => {
-      if (searchFormRef.current && !searchFormRef.current.contains(event.target)) {
-        setShowSuggestions(false);
-      }
-    };
-
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, [searchFormRef]);
-
-  useEffect(() => {
+    restoreState();
     fetchPopularMovies();
   }, []);
 
@@ -59,6 +49,41 @@ function MovieSearch() {
       setFuse(fuseInstance);
     }
   }, [allMovies]);
+
+  useEffect(() => {
+    if (movie || showBingo) {
+      saveState();
+    }
+  }, [movie, showBingo, bingoItems, markedItems, score, itemCounts]);
+
+  const saveState = () => {
+    const state = {
+      movie,
+      showBingo,
+      bingoItems,
+      markedItems,
+      score,
+      itemCounts,
+    };
+    localStorage.setItem('movieSearchState', JSON.stringify(state));
+  };
+
+  const restoreState = () => {
+    const savedState = localStorage.getItem('movieSearchState');
+    if (savedState) {
+      const state = JSON.parse(savedState);
+      setMovie(state.movie);
+      setShowBingo(state.showBingo);
+      setBingoItems(state.bingoItems);
+      setMarkedItems(state.markedItems);
+      setScore(state.score);
+      setItemCounts(state.itemCounts);
+    }
+  };
+
+  const clearSavedState = () => {
+    localStorage.removeItem('movieSearchState');
+  };
 
   const fetchPopularMovies = async () => {
     try {
@@ -111,6 +136,7 @@ function MovieSearch() {
     setMovie(null);
     setShowBingo(false);
     resetBingoState();
+    clearSavedState();
 
     if (searchQuery.trim() === '') {
       setError('Please enter a movie title to search.');
@@ -304,37 +330,39 @@ List 28 items, one per line. Do not number them.`;
 
   return (
     <div className="movie-search">
-      <header className="header">
-        <Link to="/">
-          <img src={logo} alt="Movie Search Logo" className="logo" />
-        </Link>
-        <form ref={searchFormRef} onSubmit={(e) => { e.preventDefault(); handleSearch(); }} className="search-form">
-          <input
-            type="text"
-            placeholder="Search for a movie..."
-            value={query}
-            onChange={handleInputChange}
-            className="search-input"
-          />
-          <button type="submit" className="search-button">Search</button>
-          {showSuggestions && suggestions.length > 0 && (
-            <div className="suggestions-list">
-              {suggestions.map((movie) => (
-                <div 
-                  key={movie.imdbID} 
-                  className="suggestion-item" 
-                  onClick={() => { setQuery(movie.Title); handleSearch(movie.Title); }}
-                >
-                  {movie.Title} ({movie.Year})
-                </div>
-              ))}
-            </div>
-          )}
-        </form>
-        <div className="rules-description">
-          <p>Rules are simple: Watch the movie, mark off items on your bingo card as they appear, and take a drink!</p>
-        </div>
-      </header>
+      {!showBingo && (
+        <header className="header">
+          <Link to="/">
+            <img src={logo} alt="Movie Search Logo" className="logo" />
+          </Link>
+          <form ref={searchFormRef} onSubmit={(e) => { e.preventDefault(); handleSearch(); }} className="search-form">
+            <input
+              type="text"
+              placeholder="Search for a movie..."
+              value={query}
+              onChange={handleInputChange}
+              className="search-input"
+            />
+            <button type="submit" className="search-button">Search</button>
+            {showSuggestions && suggestions.length > 0 && (
+              <div className="suggestions-list">
+                {suggestions.map((movie) => (
+                  <div 
+                    key={movie.imdbID} 
+                    className="suggestion-item" 
+                    onClick={() => { setQuery(movie.Title); handleSearch(movie.Title); }}
+                  >
+                    {movie.Title} ({movie.Year})
+                  </div>
+                ))}
+              </div>
+            )}
+          </form>
+          <div className="rules-description">
+            <p>Rules are simple: Watch the movie, mark off items on your bingo card as they appear, and take a drink!</p>
+          </div>
+        </header>
+      )}
 
       {error && <p className="error">{error}</p>}
 
@@ -352,8 +380,7 @@ List 28 items, one per line. Do not number them.`;
               <StarRating rating={movie.starRating} />
             </div>
             <p className="movie-summary">{movie.Plot}</p>
-            <div className="movie-meta">
-              <span className="meta-item">Director: {movie.Director}</span>
+            <div className="movie-meta"> <span className="meta-item">Director: {movie.Director}</span>
               <span className="meta-item">Stars: {movie.Actors}</span>
             </div>
           </div>
@@ -370,7 +397,8 @@ List 28 items, one per line. Do not number them.`;
                 Refresh Bingo
               </button>
             </div>
-            <div className="score-display"> Score: {score}
+            <div className="score-display">
+              Score: {score}
               {completedLines.length > 0 && (
                 <span className="bonus-info"> (including {Math.min(completedLines.length * 3, 24)} bonus points)</span>
               )}
@@ -411,6 +439,19 @@ List 28 items, one per line. Do not number them.`;
           <div className="back-to-movie-container">
             <button className="bingo-button back-to-movie" onClick={() => setShowBingo(false)}>
               Back to Movie Details
+            </button>
+          </div>
+          <div className="new-search-container">
+            <button 
+              className="bingo-button new-search" 
+              onClick={() => {
+                clearSavedState();
+                setShowBingo(false);
+                setMovie(null);
+                setQuery('');
+              }}
+            >
+              New Search
             </button>
           </div>
         </div>
